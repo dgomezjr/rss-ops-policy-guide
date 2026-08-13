@@ -56,6 +56,14 @@ h1,h2,h3,h4{font-family:'Newsreader',Georgia,serif; font-weight:600; color:var(-
 .brand-title{font-family:'Newsreader',serif; font-size:20px; font-weight:700; color:var(--onyx); line-height:1.2; margin-top:4px;}
 .brand-sub{font-size:12px; color:var(--text-soft); margin-top:4px;}
 
+.nav-toolbar{padding:0 10px 8px;}
+.nav-toolbar-btn{
+  background:none; border:none; cursor:pointer; padding:4px 2px;
+  font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--swell-dark);
+}
+.nav-toolbar-btn:hover{text-decoration:underline;}
+
 .nav-cat{margin-bottom:4px;}
 .nav-cat-btn{
   width:100%; display:flex; align-items:center; justify-content:space-between; gap:8px;
@@ -145,6 +153,31 @@ h1,h2,h3,h4{font-family:'Newsreader',Georgia,serif; font-weight:600; color:var(-
 .block:first-of-type{border-top:none; padding-top:0;}
 .block h3.block-title{font-size:16.5px; color:var(--swell-dark); margin-bottom:10px;}
 
+.copy-link-btn{
+  background:none; border:none; cursor:pointer; padding:0 2px;
+  font-size:13px; line-height:1; vertical-align:middle; margin-left:4px;
+  opacity:0; transition:opacity .15s ease; position:relative; top:-2px;
+}
+.section-card:hover .copy-link-btn, .block:hover .copy-link-btn, .copy-link-btn:focus{opacity:.55;}
+.copy-link-btn:hover{opacity:1 !important;}
+.copy-link-btn.copied{opacity:1;}
+.copy-link-btn.copied::after{
+  content:"Copied!"; position:absolute; left:100%; top:50%; transform:translateY(-50%);
+  margin-left:6px; font-size:11px; font-weight:600; color:var(--swell-dark);
+  font-family:'Inter',sans-serif; white-space:nowrap;
+}
+@media (max-width: 880px){.copy-link-btn{opacity:.45;}}
+
+.back-to-top{
+  position:fixed; right:22px; bottom:22px; z-index:50;
+  width:42px; height:42px; border-radius:50%; border:none; cursor:pointer;
+  background:var(--swell); color:#fff; font-size:17px; box-shadow:var(--shadow);
+  opacity:0; visibility:hidden; transform:translateY(8px);
+  transition:opacity .2s ease, transform .2s ease, visibility .2s, background .15s ease;
+}
+.back-to-top.show{opacity:1; visibility:visible; transform:translateY(0);}
+.back-to-top:hover{background:var(--swell-dark);}
+
 .block p, .section-intro p{margin:0 0 10px; line-height:1.62; font-size:14.5px;}
 .block ul, .block ol, .section-intro ul, .section-intro ol{margin:0 0 12px; padding-left:22px; line-height:1.6; font-size:14.5px;}
 .block li>p, .section-intro li>p{margin:0 0 4px;}
@@ -225,6 +258,7 @@ table tr.flash td{animation:flashrow 1.8s ease;}
       <div class="brand-title">Operations &amp; Policy Guide</div>
       <div class="brand-sub">Procedures · Policies · Decision Guidance</div>
     </div>
+    <div class="nav-toolbar"><button type="button" id="navToggleAll" class="nav-toolbar-btn">Expand all</button></div>
     <nav id="navTree"></nav>
   </aside>
 
@@ -253,6 +287,8 @@ table tr.flash td{animation:flashrow 1.8s ease;}
     </div>
   </div>
 </div>
+
+<button type="button" id="backToTop" class="back-to-top" aria-label="Back to top">↑</button>
 
 <script src="data.js"></script>
 <script src="media.js"></script>

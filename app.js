@@ -58,7 +58,7 @@
 
       let html = '';
       if (sec.number) html += `<span class="section-num">${escapeHtml(sec.number)}</span>`;
-      html += `<h2 class="section-title">${escapeHtml(sec.title)}</h2>`;
+      html += `<h2 class="section-title">${escapeHtml(sec.title)}${copyLinkBtn(sec.id, 'section')}</h2>`;
       if (sec.introHtml && sec.introHtml.trim()) {
         html += `<div class="section-intro">${sec.introHtml}</div>`;
       }
@@ -66,7 +66,7 @@
 
       sec.blocks.forEach(b => {
         html += `<div class="block" id="${escapeAttr(b.id)}">`;
-        html += `<h3 class="block-title">${escapeHtml(b.heading)}</h3>`;
+        html += `<h3 class="block-title">${escapeHtml(b.heading)}${copyLinkBtn(b.id, 'procedure')}</h3>`;
         html += b.html;
         html += renderMedia(b.id);
         html += `</div>`;
@@ -109,6 +109,10 @@
 
     docBody.appendChild(catDiv);
   });
+
+  function copyLinkBtn(id, kind) {
+    return ` <button type="button" class="copy-link-btn" data-id="${escapeAttr(id)}" title="Copy link to this ${kind}" aria-label="Copy link to this ${kind}">🔗</button>`;
+  }
 
   function renderMedia(blockId) {
     const shots = (typeof RSS_MEDIA !== 'undefined' && RSS_MEDIA[blockId]) ? RSS_MEDIA[blockId] : null;
@@ -313,6 +317,29 @@
 
   // In-content cross-reference links (e.g. Quick Task Finder "Go to" column)
   docBody.addEventListener('click', e => {
+    const copyBtn = e.target.closest('.copy-link-btn');
+    if (copyBtn) {
+      const url = location.origin + location.pathname + '#' + copyBtn.dataset.id;
+      const done = () => {
+        copyBtn.classList.add('copied');
+        clearTimeout(copyBtn._copiedTimer);
+        copyBtn._copiedTimer = setTimeout(() => copyBtn.classList.remove('copied'), 1400);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(done, done);
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = url;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); } catch (err) { /* ignore */ }
+        document.body.removeChild(ta);
+        done();
+      }
+      return;
+    }
     const a = e.target.closest('a[href^="#"]');
     if (!a) return;
     e.preventDefault();
@@ -351,5 +378,31 @@
     requestAnimationFrame(() => goToAnchor(id));
   } else {
     setActiveNav(RSS_DATA[0].items[0].id);
+  }
+
+  // ---------------------------------------------------------------
+  // 7. Sidebar expand/collapse all
+  // ---------------------------------------------------------------
+  const navToggleAll = document.getElementById('navToggleAll');
+  if (navToggleAll) {
+    navToggleAll.addEventListener('click', () => {
+      const cats = [...navTree.querySelectorAll('.nav-cat')];
+      const anyClosed = cats.some(c => !c.classList.contains('open'));
+      cats.forEach(c => c.classList.toggle('open', anyClosed));
+      navToggleAll.textContent = anyClosed ? 'Collapse all' : 'Expand all';
+    });
+  }
+
+  // ---------------------------------------------------------------
+  // 8. Back to top
+  // ---------------------------------------------------------------
+  const backToTop = document.getElementById('backToTop');
+  if (backToTop) {
+    window.addEventListener('scroll', () => {
+      backToTop.classList.toggle('show', window.scrollY > 600);
+    }, { passive: true });
+    backToTop.addEventListener('click', () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
   }
 })();
