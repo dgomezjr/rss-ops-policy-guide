@@ -150,6 +150,10 @@ h1,h2,h3,h4{font-family:'Newsreader',Georgia,serif; font-weight:600; color:var(-
 .block li>p, .section-intro li>p{margin:0 0 4px;}
 .block strong, .section-intro strong{color:var(--onyx);}
 
+.goto-link{color:var(--swell-dark); font-weight:600; text-decoration:none; border-bottom:1px solid rgba(16,110,129,0.35);}
+.goto-link:hover{color:var(--swell); border-bottom-color:var(--swell);}
+.goto-link::after{content:" \2192"; font-weight:400;}
+
 .table-wrap{overflow-x:auto; margin:14px 0 18px; border:1px solid var(--border); border-radius:10px;}
 table{border-collapse:collapse; width:100%; font-size:13.5px;}
 table th{

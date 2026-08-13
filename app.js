@@ -299,6 +299,14 @@
     goToAnchor(a.dataset.target);
   });
 
+  // In-content cross-reference links (e.g. Quick Task Finder "Go to" column)
+  docBody.addEventListener('click', e => {
+    const a = e.target.closest('a[href^="#"]');
+    if (!a) return;
+    e.preventDefault();
+    goToAnchor(decodeURIComponent(a.getAttribute('href').slice(1)));
+  });
+
   function setActiveNav(sectionId) {
     navTree.querySelectorAll('a.active').forEach(a => a.classList.remove('active'));
     const link = navTree.querySelector(`a[data-target="${cssEscape(sectionId)}"]`);
