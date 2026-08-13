@@ -191,6 +191,10 @@ mark.hit{background:#FCE8B5; padding:0 1px; border-radius:2px;}
 .flash{animation:flashbg 1.8s ease;}
 @keyframes flashbg{0%{box-shadow:0 0 0 3px var(--gold);} 100%{box-shadow:var(--shadow);}}
 
+table tr[id]{scroll-margin-top:88px;}
+table tr.flash td{animation:flashrow 1.8s ease;}
+@keyframes flashrow{0%{background:#FCE8B5;} 100%{background:transparent;}}
+
 .menu-toggle{display:none;}
 .no-results-msg{color:var(--text-soft); font-size:14px; padding:8px 4px;}
 

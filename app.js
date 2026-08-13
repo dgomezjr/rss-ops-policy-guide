@@ -93,6 +93,18 @@
           kind: 'block'
         });
       });
+      // index: row-level (flat reference tables with per-row ids, e.g. Glossary, Quick Policy Library)
+      card.querySelectorAll('tr[id]').forEach(tr => {
+        const cells = tr.querySelectorAll('td');
+        if (cells.length < 2) return;
+        searchIndex.push({
+          anchorId: tr.id,
+          breadcrumb: cat.label + ' › ' + (sec.number ? sec.number + '. ' : '') + sec.title,
+          title: cells[0].textContent.trim(),
+          text: cells[1].textContent.trim(),
+          kind: 'row'
+        });
+      });
     });
 
     docBody.appendChild(catDiv);
