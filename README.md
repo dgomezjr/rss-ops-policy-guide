@@ -87,3 +87,34 @@ Reference."
 Same pattern as your other tools: push this folder to a GitHub Pages repo,
 then embed the published URL in SharePoint via iframe. No server, no
 build step — it's ready to publish as-is.
+
+## What changed in this merge (for your records)
+
+This build reconciles two branches of work that had drifted apart — the
+version deployed at your OneDrive path, and a parallel copy being iterated
+on in chat. Nothing you already had was removed:
+
+**Kept from your deployed version, unchanged:**
+- Clickable "Go to" cross-reference links in tables (`.goto-link`)
+- Row-level anchors on reference tables (Glossary, Quick Policy Library)
+- The "Expand all / Collapse all" sidebar toggle
+- The 🔗 copy-link button style on every heading
+
+**Added in this merge:**
+- **Needs-review panel** (sidebar, top) — auto-lists any policy still
+  carrying `VALIDATION REQUIRED` / `PARTIALLY VALIDATED` language from the
+  source transcripts, with a live count badge. It's visible by design (not
+  hidden) so it doubles as your working checklist — items drop off the
+  list automatically the moment you replace the flagged content, no
+  separate list to maintain.
+- **Cross-guide switcher** ("Customer Service Guide →" under the brand
+  block) — currently points to a placeholder path; update the `href` in
+  `index.html` once the Customer Service guide has a real URL.
+- **Auto-linked emails, URLs, and Smartsheet links** — anywhere one
+  appears in the content (paragraphs, steps, table cells), it's now a
+  real clickable link with a small copy-to-clipboard icon next to it.
+  This runs automatically over whatever's in `data.js`, so it keeps
+  working on anything you add later — no extra step.
+- **16.4 Air Changes & Cancellations** — replaced the "validation
+  required" placeholder with the full policy (unticketed vs. ticketed
+  air, the Flights Team handoff, and cancellation/refund eligibility).

@@ -10,6 +10,26 @@
   const sidebar = document.getElementById('sidebar');
   const sidebarBackdrop = document.getElementById('sidebarBackdrop');
   const menuToggle = document.getElementById('menuToggle');
+  const reviewPanel = document.getElementById('reviewPanel');
+
+  // ---------------------------------------------------------------
+  // 0. Flag detection — content still carrying validation-needed
+  //    language from the source transcripts. Used to (a) dot the
+  //    sidebar item, (b) badge the heading, (c) list it in the
+  //    review panel so it's easy to find and clear.
+  // ---------------------------------------------------------------
+  const FLAG_MARKERS = ['VALIDATION REQUIRED', 'PARTIALLY VALIDATED', 'CURRENT POLICY REQUIRED'];
+  function isFlagged(html) {
+    if (!html) return false;
+    return FLAG_MARKERS.some(m => html.includes(m));
+  }
+  const flaggedSectionIds = new Set();
+  RSS_DATA.forEach(cat => {
+    cat.items.forEach(sec => {
+      const secFlagged = isFlagged(sec.introHtml) || (sec.blocks || []).some(b => isFlagged(b.html));
+      if (secFlagged) flaggedSectionIds.add(sec.id);
+    });
+  });
 
   // ---------------------------------------------------------------
   // 1. Render sidebar navigation
@@ -33,7 +53,8 @@
       const a = document.createElement('a');
       a.href = '#' + sec.id;
       a.dataset.target = sec.id;
-      a.textContent = (sec.number ? sec.number + '. ' : '') + sec.title;
+      a.innerHTML = escapeHtml((sec.number ? sec.number + '. ' : '') + sec.title) +
+        (flaggedSectionIds.has(sec.id) ? ' <span class="nav-flag-dot" title="Contains items flagged for review"></span>' : '');
       li.appendChild(a);
       ul.appendChild(li);
     });
@@ -45,6 +66,7 @@
   // 2. Render main content
   // ---------------------------------------------------------------
   const searchIndex = []; // {anchorId, breadcrumb, title, text, kind}
+  const flaggedItems = []; // {anchorId, breadcrumb, title} — feeds the review panel
 
   RSS_DATA.forEach(cat => {
     const catDiv = document.createElement('div');
@@ -56,20 +78,31 @@
       card.className = 'section-card';
       card.id = sec.id;
 
+      const secFlagged = isFlagged(sec.introHtml);
       let html = '';
       if (sec.number) html += `<span class="section-num">${escapeHtml(sec.number)}</span>`;
-      html += `<h2 class="section-title">${escapeHtml(sec.title)}${copyLinkBtn(sec.id, 'section')}</h2>`;
+      html += `<h2 class="section-title">${escapeHtml(sec.title)}${flagBadge(secFlagged)}${copyLinkBtn(sec.id, 'section')}</h2>`;
       if (sec.introHtml && sec.introHtml.trim()) {
         html += `<div class="section-intro">${sec.introHtml}</div>`;
       }
       html += renderMedia(sec.id);
 
+      if (secFlagged) flaggedItems.push({ anchorId: sec.id, breadcrumb: cat.label, title: (sec.number ? sec.number + '. ' : '') + sec.title });
+
       sec.blocks.forEach(b => {
+        const bFlagged = isFlagged(b.html);
         html += `<div class="block" id="${escapeAttr(b.id)}">`;
-        html += `<h3 class="block-title">${escapeHtml(b.heading)}${copyLinkBtn(b.id, 'procedure')}</h3>`;
+        html += `<h3 class="block-title">${escapeHtml(b.heading)}${flagBadge(bFlagged)}${copyLinkBtn(b.id, 'procedure')}</h3>`;
         html += b.html;
         html += renderMedia(b.id);
         html += `</div>`;
+        if (bFlagged) {
+          flaggedItems.push({
+            anchorId: b.id,
+            breadcrumb: cat.label + ' › ' + (sec.number ? sec.number + '. ' : '') + sec.title,
+            title: b.heading
+          });
+        }
       });
 
       card.innerHTML = html;
@@ -110,6 +143,46 @@
     docBody.appendChild(catDiv);
   });
 
+  function flagBadge(flagged) {
+    return flagged ? ' <span class="flag-badge" title="Flagged for validation before this is final">Needs review</span>' : '';
+  }
+
+  // ---------------------------------------------------------------
+  // 2b. Needs-review panel (sidebar) — visible, not hidden, so it
+  //     doubles as a working checklist while content gets validated.
+  // ---------------------------------------------------------------
+  if (reviewPanel) {
+    if (!flaggedItems.length) {
+      reviewPanel.style.display = 'none';
+    } else {
+      const head = document.createElement('button');
+      head.type = 'button';
+      head.className = 'review-panel-btn';
+      head.innerHTML = `<span>⚠ Needs review</span><span class="review-count">${flaggedItems.length}</span>`;
+      head.addEventListener('click', () => reviewPanel.classList.toggle('open'));
+      reviewPanel.appendChild(head);
+
+      const list = document.createElement('ul');
+      list.className = 'review-list';
+      flaggedItems.forEach(it => {
+        const li = document.createElement('li');
+        const a = document.createElement('a');
+        a.href = '#' + it.anchorId;
+        a.dataset.target = it.anchorId;
+        a.innerHTML = `<span class="review-breadcrumb">${escapeHtml(it.breadcrumb)}</span>${escapeHtml(it.title)}`;
+        li.appendChild(a);
+        list.appendChild(li);
+      });
+      reviewPanel.appendChild(list);
+      reviewPanel.classList.add('open');
+
+      list.addEventListener('click', e => {
+        const a = e.target.closest('a[data-target]');
+        if (a) { e.preventDefault(); goToAnchor(a.dataset.target); }
+      });
+    }
+  }
+
   function copyLinkBtn(id, kind) {
     return ` <button type="button" class="copy-link-btn" data-id="${escapeAttr(id)}" title="Copy link to this ${kind}" aria-label="Copy link to this ${kind}">🔗</button>`;
   }
@@ -128,6 +201,70 @@
     out += '</div>';
     return out;
   }
+
+  // ---------------------------------------------------------------
+  // 2c. Auto-link emails, URLs & Smartsheet links; make them copyable.
+  //     Runs over the rendered content once, after everything is in
+  //     the DOM — doesn't touch goto-links or any existing <a> tags.
+  // ---------------------------------------------------------------
+  const COPY_ICON_SVG = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none"><rect x="5" y="5" width="8" height="9" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M4 11V3.5C4 2.67157 4.67157 2 5.5 2H10.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>';
+
+  function linkifyContent(root) {
+    const COMBINED_RE = /(https?:\/\/[^\s<>()"']+)|([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/g;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode(node) {
+        if (!node.nodeValue || !/@|https?:\/\//.test(node.nodeValue)) return NodeFilter.FILTER_REJECT;
+        let p = node.parentElement;
+        while (p && p !== root) {
+          if (p.tagName === 'A' || p.tagName === 'SCRIPT' || p.tagName === 'STYLE') return NodeFilter.FILTER_REJECT;
+          p = p.parentElement;
+        }
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    });
+    const nodes = [];
+    let n;
+    while ((n = walker.nextNode())) nodes.push(n);
+
+    nodes.forEach(node => {
+      const text = node.nodeValue;
+      COMBINED_RE.lastIndex = 0;
+      let match, lastIndex = 0, found = false;
+      const frag = document.createDocumentFragment();
+      while ((match = COMBINED_RE.exec(text))) {
+        found = true;
+        const urlMatch = match[1];
+        let value = match[0];
+        let trailing = '';
+        if (urlMatch) {
+          const trim = value.match(/[).,;:!?'"]+$/);
+          if (trim) { trailing = trim[0]; value = value.slice(0, -trailing.length); }
+        }
+        if (match.index > lastIndex) frag.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
+        const a = document.createElement('a');
+        a.className = 'auto-link';
+        a.textContent = value;
+        if (urlMatch) { a.href = value; a.target = '_blank'; a.rel = 'noopener'; }
+        else { a.href = 'mailto:' + value; }
+        frag.appendChild(a);
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'inline-copy-btn';
+        btn.dataset.copyText = value;
+        const label = urlMatch ? 'Copy link' : 'Copy email address';
+        btn.title = label;
+        btn.setAttribute('aria-label', label);
+        btn.innerHTML = COPY_ICON_SVG;
+        frag.appendChild(btn);
+        if (trailing) frag.appendChild(document.createTextNode(trailing));
+        lastIndex = match.index + match[0].length;
+      }
+      if (!found) return;
+      if (lastIndex < text.length) frag.appendChild(document.createTextNode(text.slice(lastIndex)));
+      node.parentNode.replaceChild(frag, node);
+    });
+  }
+  linkifyContent(docBody);
 
   // ---------------------------------------------------------------
   // 3. Smart search
@@ -317,6 +454,29 @@
 
   // In-content cross-reference links (e.g. Quick Task Finder "Go to" column)
   docBody.addEventListener('click', e => {
+    const inlineCopyBtn = e.target.closest('.inline-copy-btn');
+    if (inlineCopyBtn) {
+      const text = inlineCopyBtn.dataset.copyText;
+      const done = () => {
+        inlineCopyBtn.classList.add('copied');
+        clearTimeout(inlineCopyBtn._copiedTimer);
+        inlineCopyBtn._copiedTimer = setTimeout(() => inlineCopyBtn.classList.remove('copied'), 1400);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, done);
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); } catch (err) { /* ignore */ }
+        document.body.removeChild(ta);
+        done();
+      }
+      return;
+    }
     const copyBtn = e.target.closest('.copy-link-btn');
     if (copyBtn) {
       const url = location.origin + location.pathname + '#' + copyBtn.dataset.id;
