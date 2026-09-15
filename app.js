@@ -10,26 +10,6 @@
   const sidebar = document.getElementById('sidebar');
   const sidebarBackdrop = document.getElementById('sidebarBackdrop');
   const menuToggle = document.getElementById('menuToggle');
-  const reviewPanel = document.getElementById('reviewPanel');
-
-  // ---------------------------------------------------------------
-  // 0. Flag detection — content still carrying validation-needed
-  //    language from the source transcripts. Used to (a) dot the
-  //    sidebar item, (b) badge the heading, (c) list it in the
-  //    review panel so it's easy to find and clear.
-  // ---------------------------------------------------------------
-  const FLAG_MARKERS = ['VALIDATION REQUIRED', 'PARTIALLY VALIDATED', 'CURRENT POLICY REQUIRED'];
-  function isFlagged(html) {
-    if (!html) return false;
-    return FLAG_MARKERS.some(m => html.includes(m));
-  }
-  const flaggedSectionIds = new Set();
-  RSS_DATA.forEach(cat => {
-    cat.items.forEach(sec => {
-      const secFlagged = isFlagged(sec.introHtml) || (sec.blocks || []).some(b => isFlagged(b.html));
-      if (secFlagged) flaggedSectionIds.add(sec.id);
-    });
-  });
 
   // ---------------------------------------------------------------
   // 1. Render sidebar navigation
@@ -53,8 +33,7 @@
       const a = document.createElement('a');
       a.href = '#' + sec.id;
       a.dataset.target = sec.id;
-      a.innerHTML = escapeHtml((sec.number ? sec.number + '. ' : '') + sec.title) +
-        (flaggedSectionIds.has(sec.id) ? ' <span class="nav-flag-dot" title="Contains items flagged for review"></span>' : '');
+      a.textContent = (sec.number ? sec.number + '. ' : '') + sec.title;
       li.appendChild(a);
       ul.appendChild(li);
     });
@@ -66,7 +45,6 @@
   // 2. Render main content
   // ---------------------------------------------------------------
   const searchIndex = []; // {anchorId, breadcrumb, title, text, kind}
-  const flaggedItems = []; // {anchorId, breadcrumb, title} — feeds the review panel
 
   RSS_DATA.forEach(cat => {
     const catDiv = document.createElement('div');
@@ -78,31 +56,20 @@
       card.className = 'section-card';
       card.id = sec.id;
 
-      const secFlagged = isFlagged(sec.introHtml);
       let html = '';
       if (sec.number) html += `<span class="section-num">${escapeHtml(sec.number)}</span>`;
-      html += `<h2 class="section-title">${escapeHtml(sec.title)}${flagBadge(secFlagged)}${copyLinkBtn(sec.id, 'section')}</h2>`;
+      html += `<h2 class="section-title">${escapeHtml(sec.title)}${copyLinkBtn(sec.id, 'section')}</h2>`;
       if (sec.introHtml && sec.introHtml.trim()) {
         html += `<div class="section-intro">${sec.introHtml}</div>`;
       }
       html += renderMedia(sec.id);
 
-      if (secFlagged) flaggedItems.push({ anchorId: sec.id, breadcrumb: cat.label, title: (sec.number ? sec.number + '. ' : '') + sec.title });
-
       sec.blocks.forEach(b => {
-        const bFlagged = isFlagged(b.html);
         html += `<div class="block" id="${escapeAttr(b.id)}">`;
-        html += `<h3 class="block-title">${escapeHtml(b.heading)}${flagBadge(bFlagged)}${copyLinkBtn(b.id, 'procedure')}</h3>`;
+        html += `<h3 class="block-title">${escapeHtml(b.heading)}${copyLinkBtn(b.id, 'procedure')}</h3>`;
         html += b.html;
         html += renderMedia(b.id);
         html += `</div>`;
-        if (bFlagged) {
-          flaggedItems.push({
-            anchorId: b.id,
-            breadcrumb: cat.label + ' › ' + (sec.number ? sec.number + '. ' : '') + sec.title,
-            title: b.heading
-          });
-        }
       });
 
       card.innerHTML = html;
@@ -142,46 +109,6 @@
 
     docBody.appendChild(catDiv);
   });
-
-  function flagBadge(flagged) {
-    return flagged ? ' <span class="flag-badge" title="Flagged for validation before this is final">Needs review</span>' : '';
-  }
-
-  // ---------------------------------------------------------------
-  // 2b. Needs-review panel (sidebar) — visible, not hidden, so it
-  //     doubles as a working checklist while content gets validated.
-  // ---------------------------------------------------------------
-  if (reviewPanel) {
-    if (!flaggedItems.length) {
-      reviewPanel.style.display = 'none';
-    } else {
-      const head = document.createElement('button');
-      head.type = 'button';
-      head.className = 'review-panel-btn';
-      head.innerHTML = `<span>⚠ Needs review</span><span class="review-count">${flaggedItems.length}</span>`;
-      head.addEventListener('click', () => reviewPanel.classList.toggle('open'));
-      reviewPanel.appendChild(head);
-
-      const list = document.createElement('ul');
-      list.className = 'review-list';
-      flaggedItems.forEach(it => {
-        const li = document.createElement('li');
-        const a = document.createElement('a');
-        a.href = '#' + it.anchorId;
-        a.dataset.target = it.anchorId;
-        a.innerHTML = `<span class="review-breadcrumb">${escapeHtml(it.breadcrumb)}</span>${escapeHtml(it.title)}`;
-        li.appendChild(a);
-        list.appendChild(li);
-      });
-      reviewPanel.appendChild(list);
-      reviewPanel.classList.add('open');
-
-      list.addEventListener('click', e => {
-        const a = e.target.closest('a[data-target]');
-        if (a) { e.preventDefault(); goToAnchor(a.dataset.target); }
-      });
-    }
-  }
 
   function copyLinkBtn(id, kind) {
     return ` <button type="button" class="copy-link-btn" data-id="${escapeAttr(id)}" title="Copy link to this ${kind}" aria-label="Copy link to this ${kind}">🔗</button>`;
