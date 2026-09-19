@@ -75,21 +75,32 @@
       card.innerHTML = html;
       catDiv.appendChild(card);
 
-      // index: section-level (title + intro)
+      // index: section-level (title + intro) — text is read from the
+      // rendered DOM, not a separately-authored duplicate, so it can
+      // never drift out of sync with what's actually on the page.
+      const introEl = card.querySelector('.section-intro');
       searchIndex.push({
         anchorId: sec.id,
         breadcrumb: cat.label,
         title: (sec.number ? sec.number + '. ' : '') + sec.title,
-        text: sec.introText || '',
+        text: introEl ? introEl.textContent.replace(/\s+/g, ' ').trim() : (sec.introText || ''),
         kind: 'section'
       });
       // index: block-level
       sec.blocks.forEach(b => {
+        const blockEl = card.querySelector('#' + cssEscape(b.id));
+        let text = b.text || '';
+        if (blockEl) {
+          const clone = blockEl.cloneNode(true);
+          const title = clone.querySelector('.block-title');
+          if (title) title.remove();
+          text = clone.textContent.replace(/\s+/g, ' ').trim();
+        }
         searchIndex.push({
           anchorId: b.id,
           breadcrumb: cat.label + ' › ' + (sec.number ? sec.number + '. ' : '') + sec.title,
           title: b.heading,
-          text: b.text || '',
+          text: text,
           kind: 'block'
         });
       });
